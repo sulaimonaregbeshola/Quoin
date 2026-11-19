@@ -8,7 +8,7 @@ use shared::acl::{ACL, PERMISSION_PROPOSE};
 use shared::governance::{GovernanceManager, GovernanceRole};
 use shared::events::{
     extended_topics,
-    DidCreatedEvent, DidUpdatedEvent, DidDeactivatedEvent,
+    DidCreatedEvent, DidRegisteredEvent, DidUpdatedEvent, DidDeactivatedEvent,
     VerificationMethodAddedEvent, ServiceAddedEvent,
 };
 
@@ -156,6 +156,15 @@ impl DIDRegistryContract {
             (extended_topics::DID_CREATED,),
             DidCreatedEvent {
                 did: did_id.clone(),
+                controller: stellar_address.clone(),
+                method: symbol_short!("stellar"),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+        env.events().publish(
+            (extended_topics::DID_REGISTERED,),
+            DidRegisteredEvent {
+                did: did_id.clone(),
                 controller: stellar_address,
                 method: symbol_short!("stellar"),
                 timestamp: env.ledger().timestamp(),
@@ -208,6 +217,15 @@ impl DIDRegistryContract {
         env.events().publish(
             (extended_topics::DID_CREATED,),
             DidCreatedEvent {
+                did: did_id.clone(),
+                controller: env.current_contract_address(),
+                method: symbol_short!("key"),
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+        env.events().publish(
+            (extended_topics::DID_REGISTERED,),
+            DidRegisteredEvent {
                 did: did_id.clone(),
                 controller: env.current_contract_address(),
                 method: symbol_short!("key"),

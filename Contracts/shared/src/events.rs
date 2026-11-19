@@ -450,6 +450,16 @@ pub struct DidCreatedEvent {
     pub timestamp: u64,
 }
 
+/// Emitted when a new DID is registered
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct DidRegisteredEvent {
+    pub did: Symbol,
+    pub controller: Address,
+    pub method: Symbol,
+    pub timestamp: u64,
+}
+
 /// Emitted when a DID document is updated
 #[contracttype]
 #[derive(Clone, Debug)]
@@ -754,6 +764,7 @@ pub mod extended_topics {
     use soroban_sdk::{symbol_short, Symbol};
 
     // DID registry
+    pub const DID_REGISTERED: Symbol          = symbol_short!("did_reg");
     pub const DID_CREATED: Symbol             = symbol_short!("did_crt");
     pub const DID_UPDATED: Symbol             = symbol_short!("did_upd");
     pub const DID_DEACTIVATED: Symbol         = symbol_short!("did_deact");
