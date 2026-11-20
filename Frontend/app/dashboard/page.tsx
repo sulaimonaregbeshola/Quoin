@@ -7,11 +7,21 @@ import { fetchCurrentUser, getToken, removeToken, type User } from "../lib/auth"
 /** How often the dashboard re-fetches while the tab is visible. */
 const REFRESH_INTERVAL_MS = 10_000;
 
+type SortKey = "label" | "value";
+type SortDirection = "asc" | "desc";
+
+interface StatRow {
+  label: string;
+  value: string;
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("label");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const inFlightRef = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -76,6 +86,25 @@ export default function DashboardPage() {
     };
   }, [refresh]);
 
+  const rows: StatRow[] = user
+    ? [
+        { label: "Account", value: user.isActive ? "Active" : "Inactive" },
+        { label: "Wallets", value: String(user.wallets?.length ?? 0) },
+        { label: "Last wallet use", value: latestWalletUse(user) ?? "Never" },
+      ]
+    : [];
+
+  const sortedRows = sortRows(rows, sortKey, sortDirection);
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#02030a] px-4 py-12 text-white sm:px-6 lg:px-8">
       <Navbar />
@@ -120,17 +149,73 @@ export default function DashboardPage() {
         )}
 
         {user && (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Stat label="Account" value={user.isActive ? "Active" : "Inactive"} />
-            <Stat label="Wallets" value={String(user.wallets?.length ?? 0)} />
-            <Stat
-              label="Last wallet use"
-              value={latestWalletUse(user) ?? "Never"}
-            />
+          <div className="overflow-x-auto rounded-2xl border border-white/10 bg-black/20">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-white/50">
+                <tr>
+                  <SortableHeader
+                    label="Metric"
+                    sortKey="label"
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Value"
+                    sortKey="value"
+                    activeKey={sortKey}
+                    direction={sortDirection}
+                    onSort={handleSort}
+                  />
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map((row) => (
+                  <tr key={row.label} className="border-b border-white/5 last:border-0">
+                    <td className="px-5 py-4 text-white/70">{row.label}</td>
+                    <td className="px-5 py-4 font-semibold">{row.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
     </main>
+  );
+}
+
+function sortRows(rows: StatRow[], key: SortKey, direction: SortDirection): StatRow[] {
+  const factor = direction === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => a[key].localeCompare(b[key], undefined, { numeric: true }) * factor);
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  direction,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  activeKey: SortKey;
+  direction: SortDirection;
+  onSort: (key: SortKey) => void;
+}) {
+  const isActive = activeKey === sortKey;
+  const ariaSort = isActive ? (direction === "asc" ? "ascending" : "descending") : "none";
+  return (
+    <th scope="col" aria-sort={ariaSort} className="px-5 py-3 font-medium">
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1 uppercase tracking-wider hover:text-white"
+      >
+        {label}
+        <span aria-hidden="true">{isActive ? (direction === "asc" ? "▲" : "▼") : "↕"}</span>
+      </button>
+    </th>
   );
 }
 
@@ -139,13 +224,4 @@ function latestWalletUse(user: User): string | null {
     .map((w) => (w.lastUsed ? new Date(w.lastUsed).getTime() : 0))
     .filter((t) => t > 0);
   return times.length ? new Date(Math.max(...times)).toLocaleString() : null;
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 px-5 py-5">
-      <p className="text-xs uppercase tracking-wider text-white/50">{label}</p>
-      <p className="mt-2 text-lg font-semibold">{value}</p>
-    </div>
-  );
 }
